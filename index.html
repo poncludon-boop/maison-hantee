@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manoir à Âmes — la Flamme</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { margin:0; height:100%; overflow:hidden;
+    font-family:'Comic Sans MS','Segoe UI',cursive,sans-serif;
+    background:#1a1033; }
+  #c { display:block; width:100%; height:100%; }
+  .panel { position:absolute; color:#fff; pointer-events:auto; }
+  #topbar { top:0; left:0; right:0; display:flex; gap:14px; align-items:center;
+    padding:8px 16px; background:linear-gradient(90deg,#2b1a4d,#43217a);
+    border-bottom:2px solid #7ee3ff; font-size:14px; }
+  #topbar .tag { background:#7ee3ff; color:#1a1033; padding:2px 10px;
+    border-radius:12px; font-weight:bold; }
+  #housePanel { top:52px; left:0; width:250px; padding:12px;
+    background:rgba(45,20,85,.92); border:2px solid #b388ff;
+    border-radius:0 12px 12px 0; display:flex; flex-direction:column; gap:8px; }
+  #atkPanel { top:52px; right:0; width:250px; padding:12px;
+    background:rgba(85,20,45,.92); border:2px solid #ff8a80;
+    border-radius:12px 0 0 12px; display:flex; flex-direction:column; gap:8px; }
+  #log { bottom:0; left:254px; width:470px; max-height:180px; overflow-y:auto;
+    background:rgba(20,20,40,.85); border:2px solid #553; border-radius:12px 12px 0 0;
+    padding:8px 12px; font-size:12.5px; }
+  #log div { line-height:1.45; }
+  button { font-family:inherit; font-size:13px; padding:7px 10px; border:0;
+    border-radius:10px; cursor:pointer; background:#ffd166; color:#3a2c00;
+    transition:transform .08s; }
+  button:hover:not(:disabled) { transform:scale(1.05); }
+  button:disabled { opacity:.4; cursor:not-allowed; }
+  button.sel { background:#7ee3ff; }
+  button.attackBtn { background:#ff8a80; color:#450000; }
+  .bar { height:14px; background:#241440; border-radius:8px; overflow:hidden;
+    border:1px solid #555; }
+  .bar > div { height:100%; background:linear-gradient(90deg,#8be28b,#ffd166,#ff5e7a);
+    transition:width .3s; }
+  h2 { margin:2px 0 4px; font-size:15px; color:#ffd166; }
+  .small { font-size:11px; opacity:.85; }
+  #overlay { position:absolute; inset:0; display:grid; place-items:center;
+    background:radial-gradient(circle,#31205e,#120a26); color:#fff; text-align:center; z-index:10; }
+  #overlay.hidden, #pass.hidden, #end.hidden { display:none; }
+  #startCard { max-width:640px; padding:30px; }
+  #startCard h1 { font-size:34px; margin:0 0 6px; color:#ffd166;
+    text-shadow:2px 2px 0 #7c1fa0; }
+  #startCard p { line-height:1.5; }
+  .modes { display:flex; gap:12px; justify-content:center; margin-top:18px; }
+  .modes button { font-size:16px; padding:14px 20px; }
+  #pass, #end { position:absolute; inset:0; display:grid; place-items:center;
+    background:rgba(10,5,30,.85); color:#fff; text-align:center; z-index:9; }
+  #passCard,#endCard { padding:30px 44px; background:#31205e;
+    border:3px solid #ffd166; border-radius:20px; font-size:22px; }
+  #endCard button { margin-top:14px; font-size:16px; }
+  .actionRow { display:flex; gap:6px; flex-wrap:wrap; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="topbar" class="panel">
+  <span class="tag" id="modeTag">—</span>
+  <span id="phaseTag">—</span>
+  <span id="nightTag">Nuit 1 / 12</span>
+  <span id="flameHint" style="margin-left:auto;color:#ffd166">🕯️ La Flamme est cachée</span>
+</div>
+
+<div id="housePanel" class="panel">
+  <h2>🏠 La Maison</h2>
+  <div class="small">Âmes : <b id="hSouls">0</b> &nbsp;|&nbsp; Jauge : <b id="gaugeTxt">0/0</b></div>
+  <div class="bar"><div id="gaugeBar" style="width:0%"></div></div>
+  <div class="small" id="buildHint">Construire une pièce : jauge pleine requise.</div>
+  <div class="actionRow" id="buildBtns"></div>
+  <div class="actionRow">
+    <button id="btnFlame">🕯️ Déplacer la Flamme</button>
+    <button id="btnTrap">🪤 Piège (2)</button>
+    <button id="btnSpirit">👻 Esprit (3)</button>
+    <button id="btnMental">🌀 Spectre (4)</button>
+    <button id="btnDemon">😈 Démon (6)</button>
+    <button id="btnRecharge">🔋 Recharger pièges (1)</button>
+  </div>
+  <button id="btnEndHouse">🌙 Terminer le tour de la maison</button>
+</div>
+
+<div id="atkPanel" class="panel">
+  <h2>🧍 Les Attaquants</h2>
+  <div class="small">Âmes : <b id="aSouls">0</b> &nbsp;|&nbsp; Pertes : <b id="aKills">0</b> &nbsp;|&nbsp; Niveau : <b id="aLvl">1</b></div>
+  <button class="attackBtn" data-type="tourist">📷 Touriste (2) — éclaireur</button>
+  <button class="attackBtn" data-type="fetard">🍾 Fêtard (4)</button>
+  <button class="attackBtn" data-type="pretre">⛪ Prêtre (6) ↑démon ↓piège</button>
+  <button class="attackBtn" data-type="militaire">🪖 Militaire (6) ↑piège ↓esprit</button>
+  <button id="btnEndAtk">⚔️ Lancer l'assaut</button>
+</div>
+
+<div id="log" class="panel"></div>
+
+<div id="pass" class="hidden"><div id="passCard"></div></div>
+
+<div id="overlay">
+  <div id="startCard">
+    <h1>MANOIR À ÂMES</h1>
+    <p>Une famille curieuse a été absorbée par une drôle de maison qui ne veut
+    que grandir. Sa <b>🕯️ Flamme</b> bat dans une pièce secrète… que les
+    attaquants devront <b>trouver</b> ! La maison absorbe les âmes pour se
+    construire de nouvelles pièces, de nouveaux pièges et de nouvelles entités.
+    Chaque attaquant tombé plante une croix dans les jardins. 😄</p>
+    <p class="small">Attaquants : traversez les jardins, fouillez les pièces,
+    trouvez la Flamme. Maison : emplissez la jauge d'âmes, construisez,
+    déplacez la Flamme, défendez ! Pièges = 1 usage (rechargez-les).</p>
+    <div class="modes">
+      <button data-mode="defend">🏠 Défendre</button>
+      <button data-mode="attack">⚔️ Attaquer</button>
+      <button data-mode="duo">👯 Duo</button>
+    </div>
+  </div>
+</div>
+
+<div id="end" class="hidden"><div id="endCard"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+
+const T = 2, GW = 40, GH = 32;
+const wx = gx => (gx + 0.5) * T - GW * T / 2;
+const wz = gz => (gz + 0.5) * T - GH * T / 2;
+const NIGHTS = 12;
+const HOUSE_REGION = { x0: 8, z0: 3, x1: 31, z1: 13 };
+
+const ROOMS = {
+  salon:      { name:'Salon',        w:3, h:2, color:0xffb74d, specific:'Télé hypnose, cheminée' },
+  cuisine:    { name:'Cuisine',      w:3, h:2, color:0xff8a80, specific:'Four enragé, gaz farceur' },
+  chambre:    { name:'Chambre',      w:2, h:2, color:0xba68c8, specific:'Lit somnambule' },
+  biblio:     { name:'Bibliothèque', w:3, h:3, color:0x4dd0e1, specific:'Grimoire possédé' },
+  sdb:        { name:'Salle de bain',w:2, h:2, color:0x90caf9, specific:'Baignoire noyade' },
+  veranda:    { name:'Véranda',      w:3, h:2, color:0x81c784, specific:'Plante carnivore' }
+};
+const COMMON = ['Tableau', 'Vase', 'Bougeoir', 'Miroir', 'Horloge', 'Tapis', 'Armoire', 'Chaise'];
+
+const UNITS = {
+  tourist:   { name:'Touriste',   icon:'📷', cost:2, souls:1, str:1, speed:3, unlock:0 },
+  fetard:    { name:'Fêtard',     icon:'🍾', cost:4, souls:2, str:2, speed:3, unlock:4 },
+  pretre:    { name:'Prêtre',     icon:'⛪', cost:6, souls:3, str:2, speed:2, unlock:9,
+               counters:{ demon:.35, esprit:.3 }, vuln:{ trap:.2 } },
+  militaire: { name:'Militaire',  icon:'🪖', cost:6, souls:3, str:3, speed:2, unlock:14,
+               counters:{ trap:.4 }, vuln:{ esprit:.25, mental:.25 } }
+};
+const HAZARDS = {
+  trap:   { name:'Piège physique', icon:'🪤', base:.6 },
+  esprit: { name:'Esprit',         icon:'👻', base:.45 },
+  mental: { name:'Spectre mental', icon:'🌀', base:.5 },
+  demon:  { name:'Démon',          icon:'😈', base:.7 }
+};
+const HAZARD_COST = { trap:2, esprit:3, mental:4, demon:6 };
+
+let mode = null, phase = 'house', night = 1, gameOver = false;
+let beatCounter = 0; // tours sans attaquant vivant
+
+const house = { souls:0, rooms:[], doors:new Set(), flameRoom:null, flameMoved:false };
+const atk = { souls:6, kills:0, units:[] };
+const crosses = [];
+
+let buildKind = null, pickMode = null, ghostMeshes = [], highlighted = [];
+
+// ---------- Grid ---------- ----------
+function roomAt(gx, gz) {
+  for (const r of house.rooms) {
+    if (gx >= r.x && gx < r.x + r.w && gz >= r.z && gz < r.z + r.h) return r;
+  }
+  return null;
+}
+const isDoor = (gx, gz) => house.doors.has(gx + ',' + gz);
+
+function walkable(gx, gz) {
+  if (gx < 0 || gz < 0 || gx >= GW || gz >= GH) return false;
+  if (gz >= 27) return true;                 // route
+  if (gz >= 14 && gz <= 26) return !HEDGES.has(gx + ',' + gz); // jardins
+  return !!roomAt(gx, gz);
+}
+
+function bfs(sx, sz, tx, tz) {
+  if (!walkable(sx, sz) || !walkable(tx, tz)) return null;
+  const key = (x, z) => x + ',' + z;
+  const prev = new Map([[key(sx, sz), null]]);
+  const q = [[sx, sz]];
+  while (q.length) {
+    const [x, z] = q.shift();
+    if (x === tx && z === tz) {
+      const path = [];
+      let k = key(x, z);
+      while (k) { const [a, b] = k.split(',').map(Number); path.push([a, b]); k = prev.get(k); }
+      return path.reverse();
+    }
+    for (const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const nx = x + dx, nz = z + dz, nk = key(nx, nz);
+      if (!prev.has(nk) && walkable(nx, nz)) { prev.set(nk, key(x, z)); q.push([nx, nz]); }
+    }
+  }
+  return null;
+}
+
+// ---------- Three.js ----------
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2b1b4e);
+scene.fog = new THREE.Fog(0x2b1b4e, 60, 120);
+
+const camera = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 300);
+let camTheta = Math.PI, camPhi = 0.9, camR = 52;
+const camTarget = new THREE.Vector3(0, 0, -6);
+function updateCam() {
+  camera.position.set(
+    camTarget.x + camR * Math.sin(camPhi) * Math.sin(camTheta),
+    camTarget.y + camR * Math.cos(camPhi),
+    camTarget.z + camR * Math.sin(camPhi) * Math.cos(camTheta));
+  camera.lookAt(camTarget);
+}
+updateCam();
+
+scene.add(new THREE.HemisphereLight(0xbfa7ff, 0x1a1033, 1.1));
+const sun = new THREE.DirectionalLight(0xfff2cc, 0.9);
+sun.position.set(30, 50, 20);
+scene.add(sun);
+
+const mat = (c, o) => new THREE.MeshLambertMaterial(Object.assign({ color:c }, o || {}));
+const box = (w, h, d, c) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c));
+
+// Sol, route, jardins
+{
+  const ground = box(GW * T + 40, 1, GH * T + 40, 0x6abe6a);
+  ground.position.y = -0.5;
+  scene.add(ground);
+  const road = box(GW * T, 0.6, 6 * T, 0x555a66);
+  road.position.set(0, 0.01, wz(29.5));
+  scene.add(road);
+  for (let gx = 1; gx < GW; gx += 3) {
+    const dash = box(4, 0.6, 0.6, 0xffe082);
+    dash.position.set(wx(gx), 0.05, wz(29.5));
+    scene.add(dash);
+  }
+  const lawn = box(GW * T, 0.6, 13 * T, 0x7ed47e);
+  lawn.position.set(0, 0.02, wz(20.5));
+  scene.add(lawn);
+  const flowerCols = [0xff5e7a, 0xffd166, 0x7ee3ff, 0xff9ff3];
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  for (let i = 0; i < 60; i++) {
+    const f = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 8), mat(flowerCols[i % 4]));
+    f.position.set(wx(1 + Math.floor(rnd() * (GW - 2))), 0.6, wz(14 + Math.floor(rnd() * 12)));
+    scene.add(f);
+  }
+  for (let i = 0; i < 26; i++) {
+    const g = new THREE.Group();
+    const trunk = box(0.5, 1.6, 0.5, 0x8d6e63); trunk.position.y = 0.8;
+    const top = new THREE.Mesh(new THREE.ConeGeometry(1.6, 3.2, 7), mat(0x4caf50));
+    top.position.y = 3;
+    g.add(trunk, top);
+    g.position.set(wx(Math.floor(rnd() * GW)), 0, wz(14 + Math.floor(rnd() * 6)));
+    scene.add(g);
+  }
+}
+
+const HEDGES = new Set();
+[[6,16],[7,16],[6,17],[14,19],[15,19],[14,20],[24,16],[25,16],[24,17],[20,22],[21,22],[31,19],[32,19],[9,23],[10,23],[9,24]]
+  .forEach(([x, z]) => HEDGES.add(x + ',' + z));
+function addHedges() {
+  const hm = mat(0x2e7d32);
+  for (const k of HEDGES) {
+    const [x, z] = k.split(',').map(Number);
+    const h = box(T * 0.9, 1.4, T * 0.9, 0);
+    h.material = hm;
+    h.position.set(wx(x), 0.7, wz(z));
+    scene.add(h);
+  }
+}
+addHedges();
+
+// Pièce : sol coloré + murs à adjacences
+function roomWalls(r) {
+  const g = new THREE.Group();
+  const wallC = 0x5b4a86;
+  const edges = [
+    { axis:'x', fixed:r.z,           from:r.x, to:r.x + r.w, z:-0.5 },                  // nord
+    { axis:'x', fixed:r.z + r.h - 1, from:r.x, to:r.x + r.w, z:+0.5 },                  // sud
+    { axis:'z', fixed:r.x,           from:r.z, to:r.z + r.h, x:-0.5 },                  // ouest
+    { axis:'z', fixed:r.x + r.w - 1, from:r.z, to:r.z + r.h, x:+0.5 }                   // est
+  ];
+  for (const e of edges) {
+    for (let t = e.from; t < e.to; t++) {
+      const gx = e.axis === 'x' ? t : e.fixed;
+      const gz = e.axis === 'x' ? e.fixed : t;
+      if (isDoor(gx, gz)) continue;
+      const w = e.axis === 'x'
+        ? new THREE.Mesh(new THREE.BoxGeometry(T, 1.8, 0.3), mat(wallC))
+        : new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.8, T), mat(wallC));
+      w.position.set(
+        wx(gx) + (e.x ? e.x : 0),
+        1.2,
+        wz(gz) + (e.z ? e.z : 0));
+      g.add(w);
+    }
+  }
+  return g;
+}
+
+function addRoom(kind, x, z, silent) {
+  const def = ROOMS[kind];
+  const r = { kind, name:def.name, x, z, w:def.w, h:def.h,
+    color:def.color, hauntings:[], artifacts:buildArtifacts(kind) };
+  house.rooms.push(r);
+  const floor = new THREE.Mesh(
+    new THREE.BoxGeometry(def.w * T, 0.6, def.h * T), mat(def.color));
+  floor.position.set(wx(x + def.w / 2 - 0.5), 0.3, wz(z + def.h / 2 - 0.5));
+  scene.add(floor);
+  scene.add(roomWalls(r));
+  return r;
+}
+
+function buildArtifacts(kind) {
+  const specs = { salon:'Télé hypnose', cuisine:'Four enragé', chambre:'Lit somnambule',
+    biblio:'Grimoire possédé', sdb:'Baignoire noyade', veranda:'Plante carnivore' };
+  return [COMMON[Math.floor(Math.random() * COMMON.length)], specs[kind]];
+}
+
+// Hall initial + porte sur les jardins
+const hall = addRoom('salon', 18, 10, true);
+hall.name = 'Hall d\u2019entrée'; hall.color = 0xffd54f;
+house.doors.add('19,13'); house.doors.add('20,13');
+house.flameRoom = hall;
+
+function carveDoor(a, b) {
+  if (a.x + a.w === b.x) {
+    const zStart = Math.max(a.z, b.z), zEnd = Math.min(a.z + a.h, b.z + b.h);
+    const zm = Math.floor((zStart + zEnd - 1) / 2);
+    house.doors.add((b.x - 1) + ',' + zm);
+    house.doors.add(b.x + ',' + zm);
+  } else if (b.x + b.w === a.x) {
+    const zStart = Math.max(a.z, b.z), zEnd = Math.min(a.z + a.h, b.z + b.h);
+    const zm = Math.floor((zStart + zEnd - 1) / 2);
+    house.doors.add((a.x - 1) + ',' + zm);
+    house.doors.add(a.x + ',' + zm);
+  } else if (a.z + a.h === b.z) {
+    const xStart = Math.max(a.x, b.x), xEnd = Math.min(a.x + a.w, b.x + b.w);
+    const xm = Math.floor((xStart + xEnd - 1) / 2);
+    house.doors.add(xm + ',' + (b.z - 1));
+    house.doors.add(xm + ',' + b.z);
+  } else if (b.z + b.h === a.z) {
+    const xStart = Math.max(a.x, b.x), xEnd = Math.min(a.x + a.w, b.x + b.w);
+    const xm = Math.floor((xStart + xEnd - 1) / 2);
+    house.doors.add(xm + ',' + (a.z - 1));
+    house.doors.add(xm + ',' + a.z);
+  }
+}
+
+// ---------- Flamme ----------
+const flameGroup = new THREE.Group();
+const flameCore = new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 12),
+  new THREE.MeshBasicMaterial({ color:0xffa726 }));
+const flameCone = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2, 10),
+  new THREE.MeshBasicMaterial({ color:0xff7043 }));
+flameCone.position.y = 1.4;
+const flameLight = new THREE.PointLight(0xffb74d, 1.4, 18);
+flameGroup.add(flameCore, flameCone, flameLight);
+scene.add(flameGroup);
+function updateFlamePos() {
+  const r = house.flameRoom;
+  flameGroup.position.set(wx(r.x + r.w / 2 - 0.5), 2.2, wz(r.z + r.h / 2 - 0.5));
+}
+updateFlamePos();
+
+// ---------- Croix du cimetière ----------
+function plantCross(x, z) {
+  const g = new THREE.Group();
+  const m = mat(0xd7ccc8);
+  const v = box(0.3, 2, 0.3, 0); v.material = m; v.position.y = 1;
+  const hBar = box(1.2, 0.3, 0.3, 0); hBar.material = m; hBar.position.y = 1.5;
+  g.add(v, hBar);
+  g.position.set(wx(x), 0, wz(z));
+  g.rotation.y = Math.random() * 0.6 - 0.3;
+  scene.add(g);
+  crosses.push(g);
+}
+
+// ---------- Unités ----------
+const UNIT_COLORS = { tourist:0xffee58, fetard:0xf48fb1, pretre:0xffffff, militaire:0x81c784 };
+function spawnUnit(type, tile) {
+  const def = UNITS[type];
+  const g = new THREE.Group();
+  const bodyMat = mat(UNIT_COLORS[type]);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.7, 1.7, 10), bodyMat);
+  body.position.y = 0.85;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.55, 10, 10), mat(0xffccaa));
+  head.position.y = 2.1;
+  if (type === 'tourist') {
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 0.2, 10), mat(0x1e88e5));
+    cap.position.y = 2.6; g.add(cap);
+  } else if (type === 'pretre') {
+    const cross = box(0.15, 0.7, 0.15, 0x222222); cross.position.set(0.7, 1.4, 0); g.add(cross);
+  } else if (type === 'militaire') {
+    const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.6, 10, 8), mat(0x558b2f));
+    helmet.position.y = 2.25; helmet.scale.y = 0.7; g.add(helmet);
+  }
+  g.add(body, head);
+  scene.add(g);
+  const u = { type, def, gx:tile[0], gz:tile[1], path:null, alive:true, mesh:g, visited:new Set() };
+  atk.units.push(u);
+  updateUnitPos(u);
+  return u;
+}
+function updateUnitPos(u) { u.mesh.position.set(wx(u.gx), 0, wz(u.gz)); }
+
+function spawnGate() {
+  const gates = [[4, 28], [20, 28], [35, 28]];
+  return gates[Math.floor(Math.random() * gates.length)];
+}
+
+// ---------- Slots de construction ----------
+function houseBBox() {
+  let x0 = 99, z0 = 99, x1 = -1, z1 = -1;
+  for (const r of house.rooms) {
+    x0 = Math.min(x0, r.x); z0 = Math.min(z0, r.z);
+    x1 = Math.max(x1, r.x + r.w); z1 = Math.max(z1, r.z + r.h);
+  }
+  return { x0, z0, x1, z1 };
+}
+function candidateSlots(kind) {
+  const def = ROOMS[kind], b = houseBBox(), out = [];
+  const tests = [
+    { x:b.x1, z:b.z0 + Math.floor((b.z1 - b.z0 - def.h) / 2), w:def.w, h:def.h },
+    { x:b.x0 - def.w, z:b.z0 + Math.floor((b.z1 - b.z0 - def.h) / 2), w:def.w, h:def.h },
+    { x:b.x0, z:b.z1, w:Math.max(def.w, b.x1 - b.x0), h:def.h },
+    { x:b.x0, z:b.z0 - def.h, w:Math.max(def.w, b.x1 - b.x0), h:def.h }
+  ];
+  for (const s of tests) {
+    if (s.x < HOUSE_REGION.x0 || s.z < HOUSE_REGION.z0 ||
+        s.x + s.w > HOUSE_REGION.x1 + 1 || s.z + s.h > HOUSE_REGION.z1 + 1) continue;
+    let overlap = false;
+    for (const r of house.rooms) {
+      if (s.x < r.x + r.w && s.x + s.w > r.x && s.z < r.z + r.h && s.z + s.h > r.z) overlap = true;
+    }
+    if (s.z + s.h > 14) continue;
+    if (!overlap) out.push(s);
+  }
+  return out;
+}
+function clearGhosts() {
+  for (const m of ghostMeshes) scene.remove(m);
+  ghostMeshes = [];
+}
+function showGhosts(kind) {
+  clearGhosts();
+  for (const s of candidateSlots(kind)) {
+    const g = new THREE.Mesh(
+      new THREE.BoxGeometry(s.w * T, 1.5, s.h * T),
+      new THREE.MeshBasicMaterial({ color:0x7ee3ff, transparent:true, opacity:0.28 }));
+    g.position.set(wx(s.x + s.w / 2 - 0.5), 1.2, wz(s.z + s.h / 2 - 0.5));
+    g.userData.slot = s;
+    scene.add(g);
+    ghostMeshes.push(g);
+  }
+}
+
+// ---------- Surbrillance de sélection ----------
+function highlightRooms() {
+  clearHighlight();
+  for (const r of house.rooms) {
+    const tile = new THREE.Mesh(
+      new THREE.BoxGeometry(r.w * T, 0.15, r.h * T),
+      new THREE.MeshBasicMaterial({ color:0xffd166, transparent:true, opacity:0.4 }));
+    tile.position.set(wx(r.x + r.w / 2 - 0.5), 0.75, wz(r.z + r.h / 2 - 0.5));
+    tile.userData.room = r;
+    scene.add(tile);
+    highlighted.push(tile);
+  }
+}
+function clearHighlight() {
+  for (const m of highlighted) scene.remove(m);
+  highlighted = [];
+}
+
+// ---------- UI ----------
+const $ = id => document.getElementById(id);
+function log(msg, color) {
+  const d = document.createElement('div');
+  d.innerHTML = msg;
+  if (color) d.style.color = color;
+  $('log').prepend(d);
+}
+function gaugeNeed() { return 8 + 5 * (house.rooms.length - 1); }
+function refreshUI() {
+  $('hSouls').textContent = house.souls;
+  const need = gaugeNeed();
+  $('gaugeTxt').textContent = house.souls + '/' + need;
+  $('gaugeBar').style.width = Math.min(100, 100 * house.souls / need) + '%';
+  $('aSouls').textContent = atk.souls;
+  $('aKills').textContent = atk.kills;
+  $('aLvl').textContent = 1 + ['fetard','pretre','militaire'].filter(t => atk.kills >= UNITS[t].unlock).length;
+  $('nightTag').textContent = 'Nuit ' + night + ' / ' + NIGHTS;
+  $('modeTag').textContent = { defend:'Défenseur vs IA', attack:'Attaquant vs IA', duo:'Duo (2 joueurs)' }[mode] || '—';
+  $('phaseTag').textContent = phase === 'house' ? '🌙 Tour de la maison' : '⚔️ Tour des attaquants';
+  const building = house.souls >= gaugeNeed();
+  document.querySelectorAll('#buildBtns button').forEach(b => b.disabled = !building || (buildKind !== null));
+  $('btnFlame').disabled = phase !== 'house' || house.flameMoved || gameOver;
+  ['btnTrap','btnSpirit','btnMental','btnDemon','btnRecharge'].forEach(id => {
+    $(id).disabled = phase !== 'house' || gameOver;
+  });
+  $('btnRecharge').disabled = phase !== 'house' || house.souls < 1 || gameOver;
+  $('btnEndHouse').disabled = phase !== 'house' || gameOver;
+  $('btnEndAtk').disabled = phase !== 'atk' || gameOver;
+  document.querySelectorAll('.attackBtn').forEach(b => {
+    const u = UNITS[b.dataset.type];
+    b.disabled = phase !== 'atk' || atk.souls < u.cost || atk.kills < u.unlock || gameOver;
+  });
+  const flameVisible = mode !== 'attack' && (mode !== 'duo' || phase === 'house');
+  flameGroup.visible = flameVisible;
+  $('flameHint').textContent = flameVisible ? '🕯️ Flamme : ' + house.flameRoom.name : '🕯️ La Flamme est cachée';
+  for (const [t, u] of Object.entries(UNITS)) {
+    const btn = document.querySelector('.attackBtn[data-type="' + t + '"]');
+    if (btn && u.unlock > 0 && atk.kills < u.unlock && !btn.dataset.lockNote) {
+      btn.style.opacity = 0.5;
+      btn.title = 'Débloqué à ' + u.unlock + ' pertes';
+    }
+  }
+}
+
+// Boutons pièce (déclarée dynamiquement)
+const buildBtns = $('buildBtns');
+for (const [kind, def] of Object.entries(ROOMS)) {
+  const b = document.createElement('button');
+  b.textContent = def.name;
+  b.title = def.specific;
+  b.dataset.kind = kind;
+  b.onclick = () => {
+    buildKind = (buildKind === kind) ? null : kind;
+    pickMode = buildKind ? 'build' : null;
+    document.querySelectorAll('#buildBtns button').forEach(x => x.classList.toggle('sel', x.dataset.kind === buildKind));
+    if (buildKind) { showGhosts(buildKind); log('🏗️ Clique un emplacement cyan pour la ' + def.name + '.', '#7ee3ff'); }
+    else clearGhosts();
+    refreshUI();
+  };
+  buildBtns.appendChild(b);
+}
+
+$('btnFlame').onclick = () => { pickMode = 'flame'; highlightRooms(); log('🕯️ Clique la pièce qui accueillera la Flamme.', '#ffd166'); };
+$('btnTrap').onclick = () => startHaunt('trap');
+$('btnSpirit').onclick = () => startHaunt('esprit');
+$('btnMental').onclick = () => startHaunt('mental');
+$('btnDemon').onclick = () => startHaunt('demon');
+$('btnRecharge').onclick = () => {
+  if (house.souls < 1) return;
+  let n = 0;
+  for (const r of house.rooms) for (const h of r.hauntings) {
+    if (h.kind === 'trap' && !h.charged) { h.charged = true; n++; }
+  }
+  if (!n) { log('🔋 Aucun piège déchargé.', '#ffd166'); return; }
+  house.souls -= 1;
+  log('🔋 ' + n + ' piège(s) rechargé(s) pour 1 âme.', '#8be28b');
+  refreshUI();
+};
+function startHaunt(kind) {
+  if (house.souls < HAZARD_COST[kind]) { log('Pas assez d\u2019âmes !', '#ff8a80'); return; }
+  pickMode = 'haunt:' + kind;
+  highlightRooms();
+  log('Clique une pièce pour y placer : ' + HAZARDS[kind].icon + ' ' + HAZARDS[kind].name, '#b388ff');
+}
+
+$('btnEndHouse').onclick = endHouseTurn;
+$('btnEndAtk').onclick = endAtkTurn;
+
+document.querySelectorAll('#overlay .modes button').forEach(b => {
+  b.onclick = () => startGame(b.dataset.mode);
+});
+
+function startGame(m) {
+  mode = m;
+  $('overlay').classList.add('hidden');
+  phase = m === 'attack' ? 'atk' : 'house';
+  log('🌅 La nuit tombe. La maison attend ses premiers visiteurs…', '#ffd166');
+  if (mode !== 'defend') hideAtkOrHousePanel();
+  refreshUI();
+}
+function hideAtkOrHousePanel() {
+  if (mode === 'attack') { $('housePanel').style.display = 'none'; }
+  if (mode === 'defend') { $('atkPanel').style.display = 'none'; }
+}
+
+// ---------- Clics 3D ----------
+const ray = new THREE.Raycaster(), pointer = new THREE.Vector2();
+canvas.addEventListener('click', e => {
+  pointer.x = (e.clientX / innerWidth) * 2 - 1;
+  pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+  ray.setFromCamera(pointer, camera);
+  if (pickMode === 'build') {
+    const hits = ray.intersectObjects(ghostMeshes);
+    if (hits.length) tryBuild(hits[0].object.userData.slot);
+    return;
+  }
+  if (pickMode === 'flame' || pickMode.startsWith('haunt')) {
+    const hits = ray.intersectObjects(highlighted);
+    if (hits.length) roomClicked(hits[0].object.userData.room);
+  }
+});
+
+function tryBuild(slot) {
+  const need = gaugeNeed();
+  if (house.souls < need) { log('Jauge pas encore pleine !', '#ff8a80'); return; }
+  house.souls -= need;
+  const r = addRoom(buildKind, slot.x, slot.z);
+  for (const other of house.rooms) {
+    if (other === r) continue;
+    carveDoor(r, other);
+  }
+  log('🏗️ ' + r.name + ' construite ! Artefacts : ' + r.artifacts.join(', ') +
+      ' — la jauge se remplit maintenant plus lentement.', '#8be28b');
+  buildKind = null; pickMode = null;
+  document.querySelectorAll('#buildBtns button').forEach(x => x.classList.remove('sel'));
+  clearGhosts();
+  refreshUI();
+}
+
+function roomClicked(r) {
+  if (pickMode === 'flame') {
+    house.flameRoom = r; house.flameMoved = true;
+    updateFlamePos();
+    log('🕯️ La Flamme est déplacée dans : ' + r.name, '#ffd166');
+    clearHighlight(); pickMode = null;
+  } else if (pickMode.startsWith('haunt')) {
+    const kind = pickMode.split(':')[1];
+    if (r.hauntings.length >= 3) { log(r.name + ' est déjà pleine (3 max).', '#ff8a80'); return; }
+    house.souls -= HAZARD_COST[kind];
+    r.hauntings.push({ kind, charged:true });
+    log(HAZARDS[kind].icon + ' ' + HAZARDS[kind].name + ' placé dans ' + r.name + '.', '#b388ff');
+    clearHighlight(); pickMode = null;
+  }
+  refreshUI();
+}
+
+// ---------- Tour de la maison ----------
+function endHouseTurn() {
+  if (gameOver) return;
+  pickMode = null; buildKind = null; clearGhosts(); clearHighlight();
+  house.flameMoved = false;
+  phase = 'atk';
+  if (mode === 'duo') {
+    const p = $('pass');
+    $('passCard').innerHTML = '⚔️ À toi, <b>attaquant</b> !<br><button id="passGo">Prêt !</button>';
+    p.classList.remove('hidden');
+    $('passGo').onclick = () => { p.classList.add('hidden'); runAtkPhase(); refreshUI(); };
+  } else {
+    runAtkPhase();
+  }
+  refreshUI();
+}
+
+function runAtkPhase() {
+  if (gameOver) return;
+  let income = 2;
+  atk.souls += income;
+  log('⚔️ Nuit ' + night + ' : les attaquants avancent… (+' + income + ' âmes)');
+  for (const u of [...atk.units]) {
+    if (!u.alive) continue;
+    unitAct(u);
+    if (gameOver) return;
+  }
+  endAtkPhaseChecks();
+}
+
+function unitAct(u) {
+  const inRoom = roomAt(u.gx, u.gz);
+  const isDoorTile = isDoor(u.gx, u.gz);
+  if (inRoom && !isDoorTile) {
+    resolveSearch(u, inRoom);
+    if (!u.alive || gameOver) return;
+  }
+  // choisir une cible
+  let target = null;
+  if (!inRoom && !isDoorTile && gz_of(u) > 13) target = [19, 11]; // dans les jardins → hall
+  else {
+    const notVisited = house.rooms.filter(r => !u.visited.has(r));
+    const list = notVisited.length ? notVisited : house.rooms;
+    let best = null, bestD = 1e9;
+    for (const r of list) {
+      const cx = r.x + r.w / 2 - 0.5, cz = r.z + r.h / 2 - 0.5;
+      const d = Math.abs(cx - u.gx) + Math.abs(cz - u.gz);
+      if (d < bestD) { bestD = d; best = [Math.floor(cx), Math.floor(cz), r]; }
+    }
+    if (best) target = best;
+  }
+  if (!target) return;
+  const path = bfs(u.gx, u.gz, target[0], target[1]);
+  if (!path) return;
+  let steps = u.def.speed;
+  for (let i = 1; i < path.length && steps > 0; i++, steps--) {
+    u.gx = path[i][0]; u.gz = path[i][1];
+  }
+  u.visited = u.visited || new Set();
+  const r = roomAt(u.gx, u.gz);
+  if (r) u.visited.add(r);
+  updateUnitPos(u);
+}
+function gz_of(u) { return u.gz; }
+
+function resolveSearch(u, r) {
+  u.visited = u.visited || new Set();
+  u.visited.add(r);
+  const charged = r.hauntings.filter(h => h.charged);
+  if (charged.length) {
+    const h = charged[Math.floor(Math.random() * charged.length)];
+    const info = HAZARDS[h.kind];
+    let chance = info.base - (u.def.str - 2) * 0.07 + (u.def.counters && u.def.counters[h.kind] ? u.def.counters[h.kind] : 0) - (u.def.vuln && u.def.vuln[h.kind] ? u.def.vuln[h.kind] : 0);
+    chance = Math.max(0.05, Math.min(0.9, chance));
+    if (Math.random() < chance) {
+      u.alive = false; scene.remove(u.mesh);
+      atk.kills++;
+      house.souls += u.def.souls;
+      let cx = u.gx, cz = u.gz;
+      if (cz < 14) { cz = 15 + Math.floor(Math.random() * 8); cx = 4 + Math.floor(Math.random() * (GW - 8)); }
+      if (crosses.length < 40) plantCross(cx, cz);
+      log(u.def.icon + ' ' + u.def.name + ' tombé sur ' + info.icon + ' <b>' + info.name + '</b> dans ' + r.name + ' ! +' + u.def.souls + ' âmes. ✝', '#ff8a80');
+    } else {
+      if (h.kind === 'trap') { h.charged = false; log(u.def.icon + ' ' + u.def.name + ' esquive le piège dans ' + r.name + ' (piège à recharger).', '#8be28b'); }
+      else log(u.def.icon + ' ' + u.def.name + ' résiste à ' + info.icon + ' dans ' + r.name + ' !', '#8be28b');
+    }
+    return;
+  }
+  if (house.flameRoom === r && Math.random() < 0.45) {
+    log('🕯️ ' + u.def.name + ' SOULÈVE un linge… <b>LA FLAMME !</b>', '#ffd166');
+    endGame('atk');
+    return;
+  }
+  log(u.def.icon + ' ' + u.def.name + ' fouille ' + r.name + ' (' + r.artifacts.join(', ') + ')… rien de ci effrayant.', '#cfd8ff');
+}
+
+function endAtkPhaseChecks() {
+  const alive = atk.units.filter(u => u.alive);
+  beatCounter = alive.length === 0 && atk.souls < 2 ? beatCounter + 1 : 0;
+  if (beatCounter >= 2) { endGame('house'); return; }
+  night++;
+  if (night > NIGHTS) { endGame('house'); return; }
+  phase = 'house';
+  aiHouseTurn();
+  if (mode === 'duo') {
+    const p = $('pass');
+    $('passCard').innerHTML = '🏠 À toi, <b>défenseur</b> !<br><button id="passGo">Prêt !</button>';
+    p.classList.remove('hidden');
+    $('passGo').onclick = () => { p.classList.add('hidden'); refreshUI(); };
+  }
+  if (mode === 'attack') phase = 'atk';
+  refreshUI();
+}
+function endAtkTurn() {
+  // bouton pour le joueur attaquant : pareil que l'IA
+  runAtkPhase();
+}
+
+// ---------- IA de la maison ----------
+function aiHouseTurn() {
+  if (mode !== 'attack' || gameOver) return;
+  const need = gaugeNeed();
+  if (house.souls >= need) {
+    const kinds = Object.keys(ROOMS);
+    let placed = false;
+    for (let tries = 0; tries < 30 && !placed; tries++) {
+      const kind = kinds[Math.floor(Math.random() * kinds.length)];
+      const slots = candidateSlots(kind);
+      if (slots.length) {
+        const slot = slots[Math.floor(Math.random() * slots.length)];
+        house.souls -= need;
+        const r = addRoom(kind, slot.x, slot.z);
+        for (const other of house.rooms) { if (other !== r) carveDoor(r, other); }
+        log('🤖 La maison construit : ' + r.name + ' !', '#b388ff');
+        placed = true;
+      }
+    }
+  }
+  if (night % 3 === 0 && house.rooms.length > 1) {
+    const r = house.rooms[Math.floor(Math.random() * house.rooms.length)];
+    house.flameRoom = r; updateFlamePos();
+    log('🤖 La Flamme change de cachette…', '#ffd166');
+  }
+  const spend = [['trap',2],['esprit',3],['demon',6]];
+  for (const [kind, cost] of spend) {
+    while (house.souls >= cost) {
+      const cands = house.rooms.filter(r => r.hauntings.length < 3 &&
+        !r.hauntings.some(h => h.kind === kind && h.charged));
+      if (!cands.length) break;
+      const r = cands[Math.floor(Math.random() * cands.length)];
+      r.hauntings.push({ kind, charged:true });
+      house.souls -= cost;
+      log('🤖 ' + HAZARDS[kind].icon + ' ' + HAZARDS[kind].name + ' placé dans ' + r.name + '.', '#b388ff');
+      if (kind !== 'trap') break;
+    }
+  }
+  for (const r of house.rooms) for (const h of r.hauntings) {
+    if (h.kind === 'trap' && !h.charged && house.souls >= 1) { h.charged = true; house.souls -= 1; }
+  }
+  refreshUI();
+}
+
+// ---------- Recrutement IA des attaquants ----------
+function aiAttackerRecruit() {
+  if (mode !== 'defend' || phase !== 'atk' || gameOver) return;
+  const order = ['pretre','militaire','fetard','tourist'];
+  for (const t of order) {
+    const u = UNITS[t];
+    while (atk.souls >= u.cost && atk.kills >= u.unlock) {
+      if (atk.units.filter(x => x.alive).length >= 6) break;
+      atk.souls -= u.cost;
+      spawnUnit(t, spawnGate());
+      log(u.icon + ' Un ' + u.name + ' arrive par la route !', '#ff8a80');
+    }
+  }
+}
+
+// ---------- Fin de partie ----------
+function endGame(winner) {
+  gameOver = true;
+  const e = $('end');
+  const card = $('endCard');
+  if (winner === 'atk') {
+    card.innerHTML = '⚔️ <b>LES ATTAQUANTS GAGNENT !</b><br>Ils ont trouvé la Flamme ! 🕯️💥' +
+      '<br><button onclick="location.reload()">Rejouer</button>';
+  } else {
+    card.innerHTML = '🏠 <b>LA MAISON GAGNE !</b><br>' + (crosses.length + 1) +
+      ' croix dans le jardin… le cimetière privé est magnifique. ✝😄' +
+      '<br><button onclick="location.reload()">Rejouer</button>';
+  }
+  e.classList.remove('hidden');
+}
+
+// ---------- Caméra drag & zoom ----------
+let dragging = false, lastX = 0, lastY = 0;
+canvas.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
+window.addEventListener('pointerup', () => { dragging = false; });
+window.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  camTheta -= (e.clientX - lastX) * 0.004;
+  camPhi = Math.min(1.35, Math.max(0.45, camPhi - (e.clientY - lastY) * 0.003));
+  lastX = e.clientX; lastY = e.clientY;
+  updateCam();
+});
+canvas.addEventListener('wheel', e => {
+  camR = Math.min(90, Math.max(24, camR + e.deltaY * 0.03));
+  updateCam();
+}, { passive:true });
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ---------- Boucle d'animation ----------
+let t0 = 0;
+function loop(t) {
+  requestAnimationFrame(loop);
+  const dt = (t - t0) / 1000; t0 = t;
+  for (const u of atk.units) {
+    if (u.alive) u.mesh.position.y = Math.abs(Math.sin(t / 180 + u.gx)) * 0.25;
+  }
+  const s = 1 + Math.sin(t / 200) * 0.12;
+  flameCore.scale.setScalar(s);
+  flameCone.scale.setScalar(s);
+  for (const g of ghostMeshes) g.material.opacity = 0.18 + 0.14 * (Math.sin(t / 250) + 1);
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+
+// Le panneau attaquant recrute : les unités spawn immédiatement (en phase atk)
+document.querySelectorAll('.attackBtn').forEach(b => {
+  b.addEventListener('click', () => {
+    if (phase !== 'atk') return;
+    const type = b.dataset.type, def = UNITS[type];
+    if (atk.souls < def.cost || atk.kills < def.unlock) return;
+    atk.souls -= def.cost;
+    spawnUnit(type, spawnGate());
+    log(def.icon + ' ' + def.name + ' recruté et envoyé sur la route !', '#ff8a80');
+    refreshUI();
+  });
+});
+
+// ---------- Duo : phase attaquant automatique aussi ----------
+const _origRun = runAtkPhase;
+runAtkPhase = function() {
+  aiAttackerRecruit();
+  _origRun();
+};
+refreshUI();
+})();
+</script>
+</body>
+</html>
