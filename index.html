@@ -13,18 +13,18 @@
   .panel { position:absolute; color:#fff; pointer-events:auto; }
   #topbar { top:0; left:0; right:0; display:flex; gap:14px; align-items:center;
     padding:8px 16px; background:linear-gradient(90deg,#2b1a4d,#43217a);
-    border-bottom:2px solid #7ee3ff; font-size:14px; }
+    border-bottom:2px solid #7ee3ff; font-size:14px; z-index:5; }
   #topbar .tag { background:#7ee3ff; color:#1a1033; padding:2px 10px;
     border-radius:12px; font-weight:bold; }
-  #housePanel { top:52px; left:0; width:250px; padding:12px;
+  #housePanel { top:52px; left:0; width:255px; padding:12px;
     background:rgba(45,20,85,.92); border:2px solid #b388ff;
-    border-radius:0 12px 12px 0; display:flex; flex-direction:column; gap:8px; }
-  #atkPanel { top:52px; right:0; width:250px; padding:12px;
+    border-radius:0 12px 12px 0; display:flex; flex-direction:column; gap:8px; z-index:4; }
+  #atkPanel { top:52px; right:0; width:255px; padding:12px;
     background:rgba(85,20,45,.92); border:2px solid #ff8a80;
-    border-radius:12px 0 0 12px; display:flex; flex-direction:column; gap:8px; }
-  #log { bottom:0; left:254px; width:470px; max-height:180px; overflow-y:auto;
+    border-radius:12px 0 0 12px; display:flex; flex-direction:column; gap:8px; z-index:4; }
+  #log { bottom:0; left:259px; width:460px; max-height:175px; overflow-y:auto;
     background:rgba(20,20,40,.85); border:2px solid #553; border-radius:12px 12px 0 0;
-    padding:8px 12px; font-size:12.5px; }
+    padding:8px 12px; font-size:12.5px; z-index:5; }
   #log div { line-height:1.45; }
   button { font-family:inherit; font-size:13px; padding:7px 10px; border:0;
     border-radius:10px; cursor:pointer; background:#ffd166; color:#3a2c00;
@@ -41,19 +41,26 @@
   .small { font-size:11px; opacity:.85; }
   #overlay { position:absolute; inset:0; display:grid; place-items:center;
     background:radial-gradient(circle,#31205e,#120a26); color:#fff; text-align:center; z-index:10; }
-  #overlay.hidden, #pass.hidden, #end.hidden { display:none; }
-  #startCard { max-width:640px; padding:30px; }
+  #overlay.hidden, #pass.hidden, #end.hidden, #modal.hidden { display:none; }
+  #startCard { max-width:660px; padding:30px; }
   #startCard h1 { font-size:34px; margin:0 0 6px; color:#ffd166;
     text-shadow:2px 2px 0 #7c1fa0; }
   #startCard p { line-height:1.5; }
   .modes { display:flex; gap:12px; justify-content:center; margin-top:18px; }
   .modes button { font-size:16px; padding:14px 20px; }
-  #pass, #end { position:absolute; inset:0; display:grid; place-items:center;
-    background:rgba(10,5,30,.85); color:#fff; text-align:center; z-index:9; }
-  #passCard,#endCard { padding:30px 44px; background:#31205e;
-    border:3px solid #ffd166; border-radius:20px; font-size:22px; }
-  #endCard button { margin-top:14px; font-size:16px; }
+  #pass, #end, #modal { position:absolute; inset:0; display:grid; place-items:center;
+    background:rgba(10,5,30,.75); color:#fff; text-align:center; z-index:9; }
+  #passCard, #endCard, #modalCard { padding:28px 40px; background:#31205e;
+    border:3px solid #ffd166; border-radius:20px; font-size:18px; max-width:540px; max-height:80vh; overflow-y:auto; }
+  #modalCard h3 { margin-top:0; color:#ffd166; font-size:22px; }
+  #endCard button, #passCard button { margin-top:14px; font-size:16px; }
   .actionRow { display:flex; gap:6px; flex-wrap:wrap; }
+  .artRow { display:flex; align-items:center; gap:8px; margin:10px 0;
+    background:#241440; border-radius:10px; padding:9px 12px; }
+  .artRow .ico { font-size:22px; }
+  .artRow .nm { flex:1; text-align:left; font-size:15px; }
+  .artRow button { font-size:12px; padding:5px 10px; }
+  #hint { color:#7ee3ff; min-height:28px; }
 </style>
 </head>
 <body>
@@ -70,16 +77,17 @@
   <h2>🏠 La Maison</h2>
   <div class="small">Âmes : <b id="hSouls">0</b> &nbsp;|&nbsp; Jauge : <b id="gaugeTxt">0/0</b></div>
   <div class="bar"><div id="gaugeBar" style="width:0%"></div></div>
-  <div class="small" id="buildHint">Construire une pièce : jauge pleine requise.</div>
+  <div class="small" id="buildHint">Jauge pleine → choisir une pièce à construire.</div>
   <div class="actionRow" id="buildBtns"></div>
   <div class="actionRow">
-    <button id="btnFlame">🕯️ Déplacer la Flamme</button>
+    <button id="btnFlame">🕯️ Cacher la Flamme</button>
     <button id="btnTrap">🪤 Piège (2)</button>
     <button id="btnSpirit">👻 Esprit (3)</button>
     <button id="btnMental">🌀 Spectre (4)</button>
     <button id="btnDemon">😈 Démon (6)</button>
     <button id="btnRecharge">🔋 Recharger pièges (1)</button>
   </div>
+  <div class="small" id="hint">—</div>
   <button id="btnEndHouse">🌙 Terminer le tour de la maison</button>
 </div>
 
@@ -90,6 +98,7 @@
   <button class="attackBtn" data-type="fetard">🍾 Fêtard (4)</button>
   <button class="attackBtn" data-type="pretre">⛪ Prêtre (6) ↑démon ↓piège</button>
   <button class="attackBtn" data-type="militaire">🪖 Militaire (6) ↑piège ↓esprit</button>
+  <div class="small" id="trailHint">✏️ Clique une unité puis glisse pour dessiner son sillage ; relâche pour valider.</div>
   <button id="btnEndAtk">⚔️ Lancer l'assaut</button>
 </div>
 
@@ -97,17 +106,25 @@
 
 <div id="pass" class="hidden"><div id="passCard"></div></div>
 
+<div id="modal" class="hidden"><div id="modalCard">
+  <h3 id="modalTitle">Plan de la pièce</h3>
+  <div id="modalBody"></div>
+  <button id="modalClose">Fermer le plan</button>
+</div></div>
+
 <div id="overlay">
   <div id="startCard">
     <h1>MANOIR À ÂMES</h1>
     <p>Une famille curieuse a été absorbée par une drôle de maison qui ne veut
-    que grandir. Sa <b>🕯️ Flamme</b> bat dans une pièce secrète… que les
-    attaquants devront <b>trouver</b> ! La maison absorbe les âmes pour se
-    construire de nouvelles pièces, de nouveaux pièges et de nouvelles entités.
-    Chaque attaquant tombé plante une croix dans les jardins. 😄</p>
-    <p class="small">Attaquants : traversez les jardins, fouillez les pièces,
-    trouvez la Flamme. Maison : emplissez la jauge d'âmes, construisez,
-    déplacez la Flamme, défendez ! Pièges = 1 usage (rechargez-les).</p>
+    que grandir. Sa <b>🕯️ Flamme</b> bat dans un <b>artefact</b> d'une pièce
+    secrète… que les attaquants devront <b>trouver</b> !</p>
+    <p class="small">⚔️ <b>Attaquants</b> : recrute, clique une unité puis
+    <b>glisse pour dessiner son sillage</b> (limité à sa vitesse) — gare aux
+    pièges de jardin qui s'activent à proximité ! Une fois dans une pièce, son
+    plan s'ouvre : choisis les artefacts à inspecter.<br>
+    🏠 <b>Maison</b> : emplis la jauge d'âmes, construis des pièces, cache la
+    Flamme dans un artefact, place pièges et entités. Les pièges sont à usage
+    unique (recharge : 1 âme). Chaque mort d'attaquant plante une croix ✝.</p>
     <div class="modes">
       <button data-mode="defend">🏠 Défendre</button>
       <button data-mode="attack">⚔️ Attaquer</button>
@@ -130,8 +147,8 @@ const NIGHTS = 12;
 const HOUSE_REGION = { x0: 8, z0: 3, x1: 31, z1: 13 };
 
 const ROOMS = {
-  salon:      { name:'Salon',        w:3, h:2, color:0xffb74d, specific:'Télé hypnose, cheminée' },
-  cuisine:    { name:'Cuisine',      w:3, h:2, color:0xff8a80, specific:'Four enragé, gaz farceur' },
+  salon:      { name:'Salon',        w:3, h:2, color:0xffb74d, specific:'Télé hypnose' },
+  cuisine:    { name:'Cuisine',      w:3, h:2, color:0xff8a80, specific:'Four enragé' },
   chambre:    { name:'Chambre',      w:2, h:2, color:0xba68c8, specific:'Lit somnambule' },
   biblio:     { name:'Bibliothèque', w:3, h:3, color:0x4dd0e1, specific:'Grimoire possédé' },
   sdb:        { name:'Salle de bain',w:2, h:2, color:0x90caf9, specific:'Baignoire noyade' },
@@ -140,9 +157,9 @@ const ROOMS = {
 const COMMON = ['Tableau', 'Vase', 'Bougeoir', 'Miroir', 'Horloge', 'Tapis', 'Armoire', 'Chaise'];
 
 const UNITS = {
-  tourist:   { name:'Touriste',   icon:'📷', cost:2, souls:1, str:1, speed:3, unlock:0 },
+  tourist:   { name:'Touriste',   icon:'📷', cost:2, souls:1, str:1, speed:4, unlock:0 },
   fetard:    { name:'Fêtard',     icon:'🍾', cost:4, souls:2, str:2, speed:3, unlock:4 },
-  pretre:    { name:'Prêtre',     icon:'⛪', cost:6, souls:3, str:2, speed:2, unlock:9,
+  pretre:    { name:'Prêtre',     icon:'⛪', cost:6, souls:3, str:2, speed:3, unlock:9,
                counters:{ demon:.35, esprit:.3 }, vuln:{ trap:.2 } },
   militaire: { name:'Militaire',  icon:'🪖', cost:6, souls:3, str:3, speed:2, unlock:14,
                counters:{ trap:.4 }, vuln:{ esprit:.25, mental:.25 } }
@@ -154,17 +171,26 @@ const HAZARDS = {
   demon:  { name:'Démon',          icon:'😈', base:.7 }
 };
 const HAZARD_COST = { trap:2, esprit:3, mental:4, demon:6 };
+const HAZ_COLOR = { trap:0xa1887f, esprit:0xe1f5fe, mental:0x7c4dff, demon:0xd50000 };
 
 let mode = null, phase = 'house', night = 1, gameOver = false;
-let beatCounter = 0; // tours sans attaquant vivant
+let beatCounter = 0;
+let modalState = null;
 
-const house = { souls:0, rooms:[], doors:new Set(), flameRoom:null, flameMoved:false };
+const house = {
+  souls:0, rooms:[], doors:new Set(),
+  flameRoom:null, flameArtifact:null, flameMoved:false
+};
+const gardenHazards = [];
+const GARDEN_HAZ_MAX = 5;
 const atk = { souls:6, kills:0, units:[] };
 const crosses = [];
 
-let buildKind = null, pickMode = null, ghostMeshes = [], highlighted = [];
+let buildKind = null, pickMode = null;
+let ghostMeshes = [], highlighted = [];
+let selectedUnit = null, drawing = false;
+let pathTiles = [], pathMarkers = [];
 
-// ---------- Grid ---------- ----------
 function roomAt(gx, gz) {
   for (const r of house.rooms) {
     if (gx >= r.x && gx < r.x + r.w && gz >= r.z && gz < r.z + r.h) return r;
@@ -175,8 +201,8 @@ const isDoor = (gx, gz) => house.doors.has(gx + ',' + gz);
 
 function walkable(gx, gz) {
   if (gx < 0 || gz < 0 || gx >= GW || gz >= GH) return false;
-  if (gz >= 27) return true;                 // route
-  if (gz >= 14 && gz <= 26) return !HEDGES.has(gx + ',' + gz); // jardins
+  if (gz >= 27) return true;
+  if (gz >= 14 && gz <= 26) return !HEDGES.has(gx + ',' + gz);
   return !!roomAt(gx, gz);
 }
 
@@ -201,7 +227,6 @@ function bfs(sx, sz, tx, tz) {
   return null;
 }
 
-// ---------- Three.js ----------
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
 renderer.setSize(innerWidth, innerHeight);
@@ -230,7 +255,6 @@ scene.add(sun);
 const mat = (c, o) => new THREE.MeshLambertMaterial(Object.assign({ color:c }, o || {}));
 const box = (w, h, d, c) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c));
 
-// Sol, route, jardins
 {
   const ground = box(GW * T + 40, 1, GH * T + 40, 0x6abe6a);
   ground.position.y = -0.5;
@@ -280,35 +304,37 @@ function addHedges() {
 }
 addHedges();
 
-// Pièce : sol coloré + murs à adjacences
 function roomWalls(r) {
   const g = new THREE.Group();
   const wallC = 0x5b4a86;
   const edges = [
-    { axis:'x', fixed:r.z,           from:r.x, to:r.x + r.w, z:-0.5 },                  // nord
-    { axis:'x', fixed:r.z + r.h - 1, from:r.x, to:r.x + r.w, z:+0.5 },                  // sud
-    { axis:'z', fixed:r.x,           from:r.z, to:r.z + r.h, x:-0.5 },                  // ouest
-    { axis:'z', fixed:r.x + r.w - 1, from:r.z, to:r.z + r.h, x:+0.5 }                   // est
+    { axis:'x', fixed:r.z,           from:r.x, to:r.x + r.w, x:0, z:-0.5 },
+    { axis:'x', fixed:r.z + r.h - 1, from:r.x, to:r.x + r.w, x:0, z:+0.5 },
+    { axis:'z', fixed:r.x,           from:r.z, to:r.z + r.h, x:-0.5, z:0 },
+    { axis:'z', fixed:r.x + r.w - 1, from:r.z, to:r.z + r.h, x:+0.5, z:0 }
   ];
   for (const e of edges) {
     for (let t = e.from; t < e.to; t++) {
       const gx = e.axis === 'x' ? t : e.fixed;
       const gz = e.axis === 'x' ? e.fixed : t;
-      if (isDoor(gx, gz)) continue;
+      if (isDoor(gx, gz) || isDoor(gx + (e.axis === 'x' ? 1 : 0), gz + (e.axis === 'x' ? 0 : 1))) continue;
       const w = e.axis === 'x'
         ? new THREE.Mesh(new THREE.BoxGeometry(T, 1.8, 0.3), mat(wallC))
         : new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.8, T), mat(wallC));
-      w.position.set(
-        wx(gx) + (e.x ? e.x : 0),
-        1.2,
-        wz(gz) + (e.z ? e.z : 0));
+      w.position.set(wx(gx) + (e.x || 0) * T, 1.2, wz(gz) + (e.z || 0) * T);
       g.add(w);
     }
   }
   return g;
 }
 
-function addRoom(kind, x, z, silent) {
+function buildArtifacts(kind) {
+  const specs = { salon:'Télé hypnose', cuisine:'Four enragé', chambre:'Lit somnambule',
+    biblio:'Grimoire possédé', sdb:'Baignoire noyade', veranda:'Plante carnivore' };
+  return [COMMON[Math.floor(Math.random() * COMMON.length)], specs[kind] || 'Dédale'];
+}
+
+function addRoom(kind, x, z) {
   const def = ROOMS[kind];
   const r = { kind, name:def.name, x, z, w:def.w, h:def.h,
     color:def.color, hauntings:[], artifacts:buildArtifacts(kind) };
@@ -321,15 +347,8 @@ function addRoom(kind, x, z, silent) {
   return r;
 }
 
-function buildArtifacts(kind) {
-  const specs = { salon:'Télé hypnose', cuisine:'Four enragé', chambre:'Lit somnambule',
-    biblio:'Grimoire possédé', sdb:'Baignoire noyade', veranda:'Plante carnivore' };
-  return [COMMON[Math.floor(Math.random() * COMMON.length)], specs[kind]];
-}
-
-// Hall initial + porte sur les jardins
-const hall = addRoom('salon', 18, 10, true);
-hall.name = 'Hall d\u2019entrée'; hall.color = 0xffd54f;
+const hall = addRoom('salon', 18, 10);
+hall.name = 'Hall d\u2019entrée';
 house.doors.add('19,13'); house.doors.add('20,13');
 house.flameRoom = hall;
 
@@ -357,7 +376,6 @@ function carveDoor(a, b) {
   }
 }
 
-// ---------- Flamme ----------
 const flameGroup = new THREE.Group();
 const flameCore = new THREE.Mesh(new THREE.SphereGeometry(0.8, 12, 12),
   new THREE.MeshBasicMaterial({ color:0xffa726 }));
@@ -373,7 +391,6 @@ function updateFlamePos() {
 }
 updateFlamePos();
 
-// ---------- Croix du cimetière ----------
 function plantCross(x, z) {
   const g = new THREE.Group();
   const m = mat(0xd7ccc8);
@@ -386,13 +403,11 @@ function plantCross(x, z) {
   crosses.push(g);
 }
 
-// ---------- Unités ----------
 const UNIT_COLORS = { tourist:0xffee58, fetard:0xf48fb1, pretre:0xffffff, militaire:0x81c784 };
 function spawnUnit(type, tile) {
   const def = UNITS[type];
   const g = new THREE.Group();
-  const bodyMat = mat(UNIT_COLORS[type]);
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.7, 1.7, 10), bodyMat);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.7, 1.7, 10), mat(UNIT_COLORS[type]));
   body.position.y = 0.85;
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.55, 10, 10), mat(0xffccaa));
   head.position.y = 2.1;
@@ -407,19 +422,50 @@ function spawnUnit(type, tile) {
   }
   g.add(body, head);
   scene.add(g);
-  const u = { type, def, gx:tile[0], gz:tile[1], path:null, alive:true, mesh:g, visited:new Set() };
+  const u = { type, def, gx:tile[0], gz:tile[1], alive:true, mesh:g,
+    visited:new Set(), movedThisTurn:false, inspected:{} };
   atk.units.push(u);
   updateUnitPos(u);
   return u;
 }
-function updateUnitPos(u) { u.mesh.position.set(wx(u.gx), 0, wz(u.gz)); }
+function updateUnitPos(u) { u.mesh.position.set(wx(u.gx), u.mesh.position.y, wz(u.gz)); }
 
 function spawnGate() {
   const gates = [[4, 28], [20, 28], [35, 28]];
   return gates[Math.floor(Math.random() * gates.length)];
 }
 
-// ---------- Slots de construction ----------
+const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.15, 8, 24),
+  new THREE.MeshBasicMaterial({ color:0xff5e7a }));
+ring.rotation.x = Math.PI / 2;
+ring.visible = false;
+scene.add(ring);
+
+function clearPathMarkers() {
+  for (const m of pathMarkers) scene.remove(m);
+  pathMarkers = [];
+}
+function addPathMarker(tile) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.35, 8, 8),
+    new THREE.MeshBasicMaterial({ color:0x7ee3ff, transparent:true, opacity:0.85 }));
+  m.position.set(wx(tile[0]), 0.5, wz(tile[1]));
+  scene.add(m);
+  pathMarkers.push(m);
+}
+function selectUnit(u) {
+  selectedUnit = u;
+  ring.visible = !!u;
+}
+
+function addGardenHazard(gx, gz, kind) {
+  const gh = { gx, gz, kind, charged:true };
+  const m = box(0.9, 0.7, 0.9, HAZ_COLOR[kind]);
+  m.position.set(wx(gx), 0.75, wz(gz));
+  scene.add(m);
+  gh.mesh = m;
+  gardenHazards.push(gh);
+}
+
 function houseBBox() {
   let x0 = 99, z0 = 99, x1 = -1, z1 = -1;
   for (const r of house.rooms) {
@@ -464,8 +510,6 @@ function showGhosts(kind) {
     ghostMeshes.push(g);
   }
 }
-
-// ---------- Surbrillance de sélection ----------
 function highlightRooms() {
   clearHighlight();
   for (const r of house.rooms) {
@@ -483,7 +527,6 @@ function clearHighlight() {
   highlighted = [];
 }
 
-// ---------- UI ----------
 const $ = id => document.getElementById(id);
 function log(msg, color) {
   const d = document.createElement('div');
@@ -504,7 +547,7 @@ function refreshUI() {
   $('modeTag').textContent = { defend:'Défenseur vs IA', attack:'Attaquant vs IA', duo:'Duo (2 joueurs)' }[mode] || '—';
   $('phaseTag').textContent = phase === 'house' ? '🌙 Tour de la maison' : '⚔️ Tour des attaquants';
   const building = house.souls >= gaugeNeed();
-  document.querySelectorAll('#buildBtns button').forEach(b => b.disabled = !building || (buildKind !== null));
+  document.querySelectorAll('#buildBtns button').forEach(b => b.disabled = !building || (buildKind !== null) || phase !== 'house');
   $('btnFlame').disabled = phase !== 'house' || house.flameMoved || gameOver;
   ['btnTrap','btnSpirit','btnMental','btnDemon','btnRecharge'].forEach(id => {
     $(id).disabled = phase !== 'house' || gameOver;
@@ -518,17 +561,33 @@ function refreshUI() {
   });
   const flameVisible = mode !== 'attack' && (mode !== 'duo' || phase === 'house');
   flameGroup.visible = flameVisible;
-  $('flameHint').textContent = flameVisible ? '🕯️ Flamme : ' + house.flameRoom.name : '🕯️ La Flamme est cachée';
+  $('flameHint').textContent = flameVisible
+    ? '🕯️ Flamme : ' + house.flameRoom.name + ' / ' + (house.flameArtifact || '—')
+    : '🕯️ La Flamme est cachée';
+  const hints = {
+    build:'Clique un emplacement cyan.',
+    flame:'Clique une pièce : son plan s\u2019ouvrira pour cacher la Flamme.',
+    haunt:'Pièce → plan (choisir l\u2019artefact) · jardin → placement direct.'
+  };
+  $('hint').textContent = hints[pickMode] || '—';
+  if (phase === 'atk' && (mode === 'attack' || mode === 'duo') && !gameOver) {
+    $('trailHint').textContent = selectedUnit
+      ? '✏️ Sillage de ' + selectedUnit.def.name + ' : ' + (pathTiles.length - 1) + '/' + selectedUnit.def.speed + ' cases. Relâche pour valider.'
+      : '✏️ Clique une unité, puis glisse sur le terrain pour dessiner son sillage.';
+  } else if (phase === 'atk') {
+    $('trailHint').textContent = 'Les attaquants IA avancent seuls…';
+  } else {
+    $('trailHint').textContent = 'Termine le tour de la maison, puis dessine tes sillages pendant la nuit.';
+  }
   for (const [t, u] of Object.entries(UNITS)) {
     const btn = document.querySelector('.attackBtn[data-type="' + t + '"]');
-    if (btn && u.unlock > 0 && atk.kills < u.unlock && !btn.dataset.lockNote) {
+    if (btn && u.unlock > 0 && atk.kills < u.unlock) {
       btn.style.opacity = 0.5;
       btn.title = 'Débloqué à ' + u.unlock + ' pertes';
     }
   }
 }
 
-// Boutons pièce (déclarée dynamiquement)
 const buildBtns = $('buildBtns');
 for (const [kind, def] of Object.entries(ROOMS)) {
   const b = document.createElement('button');
@@ -546,7 +605,7 @@ for (const [kind, def] of Object.entries(ROOMS)) {
   buildBtns.appendChild(b);
 }
 
-$('btnFlame').onclick = () => { pickMode = 'flame'; highlightRooms(); log('🕯️ Clique la pièce qui accueillera la Flamme.', '#ffd166'); };
+$('btnFlame').onclick = () => { pickMode = 'flame'; log('🕯️ Clique la pièce cible : son plan s\u2019ouvrira.', '#ffd166'); };
 $('btnTrap').onclick = () => startHaunt('trap');
 $('btnSpirit').onclick = () => startHaunt('esprit');
 $('btnMental').onclick = () => startHaunt('mental');
@@ -557,6 +616,9 @@ $('btnRecharge').onclick = () => {
   for (const r of house.rooms) for (const h of r.hauntings) {
     if (h.kind === 'trap' && !h.charged) { h.charged = true; n++; }
   }
+  for (const gh of gardenHazards) {
+    if (gh.kind === 'trap' && !gh.charged) { gh.charged = true; n++; gh.mesh.material = mat(HAZ_COLOR.trap); }
+  }
   if (!n) { log('🔋 Aucun piège déchargé.', '#ffd166'); return; }
   house.souls -= 1;
   log('🔋 ' + n + ' piège(s) rechargé(s) pour 1 âme.', '#8be28b');
@@ -564,9 +626,9 @@ $('btnRecharge').onclick = () => {
 };
 function startHaunt(kind) {
   if (house.souls < HAZARD_COST[kind]) { log('Pas assez d\u2019âmes !', '#ff8a80'); return; }
-  pickMode = 'haunt:' + kind;
-  highlightRooms();
-  log('Clique une pièce pour y placer : ' + HAZARDS[kind].icon + ' ' + HAZARDS[kind].name, '#b388ff');
+  pickMode = 'haunt';
+  window.__hauntKind = kind;
+  log('Clique une pièce (plan) ou un carré de jardin (placement direct) : ' + HAZARDS[kind].icon + ' ' + HAZARDS[kind].name, '#b388ff');
 }
 
 $('btnEndHouse').onclick = endHouseTurn;
@@ -581,105 +643,178 @@ function startGame(m) {
   $('overlay').classList.add('hidden');
   phase = m === 'attack' ? 'atk' : 'house';
   log('🌅 La nuit tombe. La maison attend ses premiers visiteurs…', '#ffd166');
-  if (mode !== 'defend') hideAtkOrHousePanel();
+  if (m === 'attack') $('housePanel').style.display = 'none';
+  if (m === 'defend') $('atkPanel').style.display = 'none';
   refreshUI();
 }
-function hideAtkOrHousePanel() {
-  if (mode === 'attack') { $('housePanel').style.display = 'none'; }
-  if (mode === 'defend') { $('atkPanel').style.display = 'none'; }
+
+function openModal(html, title) {
+  $('modalTitle').textContent = title;
+  $('modalBody').innerHTML = html;
+  $('modal').classList.remove('hidden');
+}
+$('modalClose').onclick = () => {
+  $('modal').classList.add('hidden');
+  modalState = null;
+};
+function artifactRow(icon, name, btnLabel, disabled) {
+  const dis = disabled ? 'disabled' : '';
+  return '<div class="artRow"><span class="ico">' + icon + '</span><span class="nm">' + name +
+    '</span><button data-act="1" ' + dis + '>' + btnLabel + '</button></div>';
+}
+$('modalBody').addEventListener('click', e => {
+  if (e.target.dataset.act && modalState && modalState.handler) modalState.handler(e.target);
+});
+function planIcon(room) {
+  const icons = { salon:'📺', cuisine:'🍳', chambre:'🛏️', biblio:'📚', sdb:'🛁', veranda:'🪴' };
+  return icons[room.kind] || '🚪';
 }
 
-// ---------- Clics 3D ----------
-const ray = new THREE.Raycaster(), pointer = new THREE.Vector2();
-canvas.addEventListener('click', e => {
-  pointer.x = (e.clientX / innerWidth) * 2 - 1;
-  pointer.y = -(e.clientY / innerHeight) * 2 + 1;
-  ray.setFromCamera(pointer, camera);
-  if (pickMode === 'build') {
-    const hits = ray.intersectObjects(ghostMeshes);
-    if (hits.length) tryBuild(hits[0].object.userData.slot);
+function openDefenderPlan(room, purpose, kind) {
+  const rows = room.artifacts.map(a => {
+    const occ = room.hauntings.find(h => h.artifact === a);
+    const isFlame = house.flameRoom === room && house.flameArtifact === a;
+    const status = isFlame ? '🕯️ Flamme !' :
+      (occ ? (HAZARDS[occ.kind].icon + ' ' + (occ.charged ? 'actif' : 'à recharger')) : 'libre');
+    const btnLabel = purpose === 'flame' ? 'Cacher ici' : 'Placer ici';
+    const disabled = isFlame || !!occ || (purpose !== 'flame' && house.souls < HAZARD_COST[kind]);
+    return artifactRow(planIcon(room), a + ' <span class="small">(' + status + ')</span>', btnLabel, disabled);
+  }).join('');
+  openModal(rows || '<p class="small">Aucun artefact.</p>', '📐 Plan : ' + room.name);
+  modalState = { room, purpose, kind, rows:[...$('modalBody').querySelectorAll('.artRow')] };
+  modalState.handler = btn => {
+    const idx = modalState.rows.indexOf(btn.closest('.artRow'));
+    if (idx < 0) return;
+    const a = modalState.room.artifacts[idx];
+    if (modalState.purpose === 'flame') {
+      house.flameRoom = modalState.room; house.flameArtifact = a; house.flameMoved = true;
+      updateFlamePos();
+      log('🕯️ La Flamme est cachée : ' + modalState.room.name + ' / ' + a, '#ffd166');
+    } else {
+      const k = modalState.kind;
+      modalState.room.hauntings.push({ kind:k, charged:true, artifact:a });
+      house.souls -= HAZARD_COST[k];
+      log(HAZARDS[k].icon + ' ' + HAZARDS[k].name + ' placé dans ' + a + ' (' + modalState.room.name + ').', '#b388ff');
+    }
+    $('modal').classList.add('hidden');
+    modalState = null;
+    pickMode = null;
+    refreshUI();
+  };
+}
+
+function openAttackerPlan(room, unit) {
+  const rows = room.artifacts.map((a, i) => {
+    const done = unit.inspected[room.x + ':' + room.z] &&
+      unit.inspected[room.x + ':' + room.z].has(i);
+    return artifactRow(planIcon(room), a, done ? '✔ inspecté' : '🔍 Inspecter', done);
+  }).join('');
+  openModal(rows, '📐 Plan : ' + room.name + ' (' + unit.def.icon + ' ' + unit.def.name + ')');
+  modalState = { room, unit, rows:[...$('modalBody').querySelectorAll('.artRow')] };
+  modalState.handler = btn => {
+    const idx = modalState.rows.indexOf(btn.closest('.artRow'));
+    if (idx < 0) return;
+    const u = modalState.unit, r = modalState.room;
+    if (!u.inspected[r.x + ':' + r.z]) u.inspected[r.x + ':' + r.z] = new Set();
+    u.inspected[r.x + ':' + r.z].add(idx);
+    btn.disabled = true;
+    btn.textContent = '✔ inspecté';
+    resolveInspection(u, r, r.artifacts[idx]);
+  };
+}
+
+function killUnit(u, cause) {
+  u.alive = false; scene.remove(u.mesh);
+  atk.kills++;
+  house.souls += u.def.souls;
+  let cx = u.gx, cz = u.gz;
+  if (cz < 14) { cz = 15 + Math.floor(Math.random() * 8); cx = 4 + Math.floor(Math.random() * (GW - 8)); }
+  if (crosses.length < 40) plantCross(cx, cz);
+  log(u.def.icon + ' ' + u.def.name + ' tombé sur <b>' + cause + '</b> ! +' + u.def.souls + ' âmes. ✝', '#ff8a80');
+  if (selectedUnit === u) selectUnit(null);
+  refreshUI();
+}
+
+function hazardChance(u, kind) {
+  const info = HAZARDS[kind];
+  const chance = info.base - (u.def.str - 2) * 0.07 +
+    (u.def.counters && u.def.counters[kind] ? u.def.counters[kind] : 0) -
+    (u.def.vuln && u.def.vuln[kind] ? u.def.vuln[kind] : 0);
+  return Math.max(0.05, Math.min(0.9, chance));
+}
+
+function resolveInspection(u, r, artifact) {
+  const h = r.hauntings.find(x => x.artifact === artifact && x.charged);
+  if (h) {
+    const info = HAZARDS[h.kind];
+    if (Math.random() < hazardChance(u, h.kind)) {
+      killUnit(u, info.name + ' dans ' + r.name);
+    } else if (h.kind === 'trap') {
+      h.charged = false;
+      log(u.def.icon + ' ' + u.def.name + ' désarme le piège (' + artifact + ', ' + r.name + '). Recharge requise.', '#8be28b');
+    } else {
+      log(u.def.icon + ' ' + u.def.name + ' résiste à ' + info.icon + ' (' + artifact + ', ' + r.name + ') !', '#8be28b');
+    }
     return;
   }
-  if (pickMode === 'flame' || pickMode.startsWith('haunt')) {
-    const hits = ray.intersectObjects(highlighted);
-    if (hits.length) roomClicked(hits[0].object.userData.room);
-  }
-});
-
-function tryBuild(slot) {
-  const need = gaugeNeed();
-  if (house.souls < need) { log('Jauge pas encore pleine !', '#ff8a80'); return; }
-  house.souls -= need;
-  const r = addRoom(buildKind, slot.x, slot.z);
-  for (const other of house.rooms) {
-    if (other === r) continue;
-    carveDoor(r, other);
-  }
-  log('🏗️ ' + r.name + ' construite ! Artefacts : ' + r.artifacts.join(', ') +
-      ' — la jauge se remplit maintenant plus lentement.', '#8be28b');
-  buildKind = null; pickMode = null;
-  document.querySelectorAll('#buildBtns button').forEach(x => x.classList.remove('sel'));
-  clearGhosts();
-  refreshUI();
-}
-
-function roomClicked(r) {
-  if (pickMode === 'flame') {
-    house.flameRoom = r; house.flameMoved = true;
-    updateFlamePos();
-    log('🕯️ La Flamme est déplacée dans : ' + r.name, '#ffd166');
-    clearHighlight(); pickMode = null;
-  } else if (pickMode.startsWith('haunt')) {
-    const kind = pickMode.split(':')[1];
-    if (r.hauntings.length >= 3) { log(r.name + ' est déjà pleine (3 max).', '#ff8a80'); return; }
-    house.souls -= HAZARD_COST[kind];
-    r.hauntings.push({ kind, charged:true });
-    log(HAZARDS[kind].icon + ' ' + HAZARDS[kind].name + ' placé dans ' + r.name + '.', '#b388ff');
-    clearHighlight(); pickMode = null;
-  }
-  refreshUI();
-}
-
-// ---------- Tour de la maison ----------
-function endHouseTurn() {
-  if (gameOver) return;
-  pickMode = null; buildKind = null; clearGhosts(); clearHighlight();
-  house.flameMoved = false;
-  phase = 'atk';
-  if (mode === 'duo') {
-    const p = $('pass');
-    $('passCard').innerHTML = '⚔️ À toi, <b>attaquant</b> !<br><button id="passGo">Prêt !</button>';
-    p.classList.remove('hidden');
-    $('passGo').onclick = () => { p.classList.add('hidden'); runAtkPhase(); refreshUI(); };
+  const isFlame = house.flameRoom === r;
+  const chance = isFlame ? (house.flameArtifact === artifact ? 0.65 : 0.2) : 0;
+  if (chance && Math.random() < chance) {
+    log('🕯️ ' + u.def.name + ' soulève ' + artifact + '… <b>LA FLAMME !</b>', '#ffd166');
+    endGame('atk');
+  } else if (isFlame) {
+    log('🔍 ' + u.def.name + ' inspecte ' + artifact + ' dans ' + r.name + '… ça bruisse, mais rien.', '#cfd8ff');
   } else {
-    runAtkPhase();
+    log('🔍 ' + u.def.name + ' inspecte ' + artifact + ' : rien de bien effrayant.', '#cfd8ff');
   }
-  refreshUI();
 }
 
-function runAtkPhase() {
-  if (gameOver) return;
-  let income = 2;
-  atk.souls += income;
-  log('⚔️ Nuit ' + night + ' : les attaquants avancent… (+' + income + ' âmes)');
-  for (const u of [...atk.units]) {
-    if (!u.alive) continue;
-    unitAct(u);
-    if (gameOver) return;
+function gardenProximityTrigger(u) {
+  for (const gh of gardenHazards) {
+    if (!gh.charged) continue;
+    if (Math.abs(gh.gx - u.gx) <= 1 && Math.abs(gh.gz - u.gz) <= 1) {
+      const info = HAZARDS[gh.kind];
+      if (Math.random() < hazardChance(u, gh.kind)) {
+        killUnit(u, info.name + ' de jardin à proximité');
+      } else if (gh.kind === 'trap') {
+        gh.charged = false;
+        gh.mesh.material = mat(0x555555);
+        log(u.def.icon + ' ' + u.def.name + ' esquive le piège du jardin !', '#8be28b');
+      } else {
+        log(u.def.icon + ' ' + u.def.name + ' brave ' + info.icon + ' du jardin !', '#8be28b');
+      }
+      return;
+    }
   }
-  endAtkPhaseChecks();
 }
 
-function unitAct(u) {
+function commitPath(u) {
+  for (let i = 1; i < pathTiles.length; i++) {
+    u.gx = pathTiles[i][0]; u.gz = pathTiles[i][1];
+    gardenProximityTrigger(u);
+    if (!u.alive || gameOver) break;
+  }
+  const r = roomAt(u.gx, u.gz);
+  if (r) u.visited.add(r);
+  updateUnitPos(u);
+  clearPathMarkers();
+}
+
+function unitActAI(u) {
   const inRoom = roomAt(u.gx, u.gz);
-  const isDoorTile = isDoor(u.gx, u.gz);
-  if (inRoom && !isDoorTile) {
-    resolveSearch(u, inRoom);
+  const onDoor = isDoor(u.gx, u.gz);
+  if (inRoom && !onDoor) {
+    u.inspected[inRoom.x + ':' + inRoom.z] = u.inspected[inRoom.x + ':' + inRoom.z] || new Set();
+    for (let i = 0; i < inRoom.artifacts.length; i++) {
+      if (u.inspected[inRoom.x + ':' + inRoom.z].has(i)) continue;
+      u.inspected[inRoom.x + ':' + inRoom.z].add(i);
+      resolveInspection(u, inRoom, inRoom.artifacts[i]);
+      break;
+    }
     if (!u.alive || gameOver) return;
   }
-  // choisir une cible
   let target = null;
-  if (!inRoom && !isDoorTile && gz_of(u) > 13) target = [19, 11]; // dans les jardins → hall
+  if (!inRoom && !onDoor && u.gz > 13) target = [19, 11];
   else {
     const notVisited = house.rooms.filter(r => !u.visited.has(r));
     const list = notVisited.length ? notVisited : house.rooms;
@@ -687,7 +822,7 @@ function unitAct(u) {
     for (const r of list) {
       const cx = r.x + r.w / 2 - 0.5, cz = r.z + r.h / 2 - 0.5;
       const d = Math.abs(cx - u.gx) + Math.abs(cz - u.gz);
-      if (d < bestD) { bestD = d; best = [Math.floor(cx), Math.floor(cz), r]; }
+      if (d < bestD) { bestD = d; best = [Math.floor(cx), Math.floor(cz)]; }
     }
     if (best) target = best;
   }
@@ -697,43 +832,52 @@ function unitAct(u) {
   let steps = u.def.speed;
   for (let i = 1; i < path.length && steps > 0; i++, steps--) {
     u.gx = path[i][0]; u.gz = path[i][1];
+    gardenProximityTrigger(u);
+    if (!u.alive || gameOver) return;
   }
-  u.visited = u.visited || new Set();
   const r = roomAt(u.gx, u.gz);
   if (r) u.visited.add(r);
   updateUnitPos(u);
 }
-function gz_of(u) { return u.gz; }
 
-function resolveSearch(u, r) {
-  u.visited = u.visited || new Set();
-  u.visited.add(r);
-  const charged = r.hauntings.filter(h => h.charged);
-  if (charged.length) {
-    const h = charged[Math.floor(Math.random() * charged.length)];
-    const info = HAZARDS[h.kind];
-    let chance = info.base - (u.def.str - 2) * 0.07 + (u.def.counters && u.def.counters[h.kind] ? u.def.counters[h.kind] : 0) - (u.def.vuln && u.def.vuln[h.kind] ? u.def.vuln[h.kind] : 0);
-    chance = Math.max(0.05, Math.min(0.9, chance));
-    if (Math.random() < chance) {
-      u.alive = false; scene.remove(u.mesh);
-      atk.kills++;
-      house.souls += u.def.souls;
-      let cx = u.gx, cz = u.gz;
-      if (cz < 14) { cz = 15 + Math.floor(Math.random() * 8); cx = 4 + Math.floor(Math.random() * (GW - 8)); }
-      if (crosses.length < 40) plantCross(cx, cz);
-      log(u.def.icon + ' ' + u.def.name + ' tombé sur ' + info.icon + ' <b>' + info.name + '</b> dans ' + r.name + ' ! +' + u.def.souls + ' âmes. ✝', '#ff8a80');
-    } else {
-      if (h.kind === 'trap') { h.charged = false; log(u.def.icon + ' ' + u.def.name + ' esquive le piège dans ' + r.name + ' (piège à recharger).', '#8be28b'); }
-      else log(u.def.icon + ' ' + u.def.name + ' résiste à ' + info.icon + ' dans ' + r.name + ' !', '#8be28b');
+function endHouseTurn() {
+  if (gameOver) return;
+  pickMode = null; buildKind = null;
+  clearGhosts(); clearHighlight();
+  house.flameMoved = false;
+  phase = 'atk';
+  for (const u of atk.units) { u.movedThisTurn = false; u.inspected = {}; }
+  selectUnit(null);
+  refreshUI();
+  if (mode === 'defend') {
+    aiAttackerRecruit();
+    log('⚔️ Nuit ' + night + ' : les attaquants avancent seuls…', '#ff8a80');
+    for (const u of [...atk.units]) {
+      if (!u.alive) continue;
+      unitActAI(u);
+      if (gameOver) return;
     }
-    return;
+    endAtkPhaseChecks();
+  } else {
+    if (gameOver) return;
+    atk.souls += 2;
+    log('💰 +2 âmes pour les attaquants.', '#ff8a80');
   }
-  if (house.flameRoom === r && Math.random() < 0.45) {
-    log('🕯️ ' + u.def.name + ' SOULÈVE un linge… <b>LA FLAMME !</b>', '#ffd166');
-    endGame('atk');
-    return;
+  if (mode === 'duo') {
+    const p = $('pass');
+    $('passCard').innerHTML = '⚔️ À toi, <b>attaquant</b> !<br><button id="passGo">Prêt !</button>';
+    p.classList.remove('hidden');
+    $('passGo').onclick = () => { p.classList.add('hidden'); refreshUI(); };
   }
-  log(u.def.icon + ' ' + u.def.name + ' fouille ' + r.name + ' (' + r.artifacts.join(', ') + ')… rien de ci effrayant.', '#cfd8ff');
+}
+
+function endAtkTurn() {
+  if (gameOver) return;
+  if ((mode === 'attack' || mode === 'duo') && atk.units.length) {
+    const anyMoved = atk.units.some(u => u.alive && u.movedThisTurn);
+    if (!anyMoved) log('⚠️ Aucune unité n\u2019a bougé ce tour !', '#ffd166');
+  }
+  endAtkPhaseChecks();
 }
 
 function endAtkPhaseChecks() {
@@ -749,23 +893,18 @@ function endAtkPhaseChecks() {
     $('passCard').innerHTML = '🏠 À toi, <b>défenseur</b> !<br><button id="passGo">Prêt !</button>';
     p.classList.remove('hidden');
     $('passGo').onclick = () => { p.classList.add('hidden'); refreshUI(); };
+  } else if (mode === 'attack') {
+    phase = 'atk';
   }
-  if (mode === 'attack') phase = 'atk';
   refreshUI();
 }
-function endAtkTurn() {
-  // bouton pour le joueur attaquant : pareil que l'IA
-  runAtkPhase();
-}
 
-// ---------- IA de la maison ----------
 function aiHouseTurn() {
   if (mode !== 'attack' || gameOver) return;
   const need = gaugeNeed();
   if (house.souls >= need) {
     const kinds = Object.keys(ROOMS);
-    let placed = false;
-    for (let tries = 0; tries < 30 && !placed; tries++) {
+    for (let tries = 0; tries < 30; tries++) {
       const kind = kinds[Math.floor(Math.random() * kinds.length)];
       const slots = candidateSlots(kind);
       if (slots.length) {
@@ -774,26 +913,46 @@ function aiHouseTurn() {
         const r = addRoom(kind, slot.x, slot.z);
         for (const other of house.rooms) { if (other !== r) carveDoor(r, other); }
         log('🤖 La maison construit : ' + r.name + ' !', '#b388ff');
-        placed = true;
+        break;
       }
     }
   }
-  if (night % 3 === 0 && house.rooms.length > 1) {
+  if (house.rooms.length > 1 && Math.random() < 0.4) {
     const r = house.rooms[Math.floor(Math.random() * house.rooms.length)];
-    house.flameRoom = r; updateFlamePos();
+    house.flameRoom = r;
+    house.flameArtifact = r.artifacts[Math.floor(Math.random() * r.artifacts.length)];
+    updateFlamePos();
     log('🤖 La Flamme change de cachette…', '#ffd166');
   }
-  const spend = [['trap',2],['esprit',3],['demon',6]];
-  for (const [kind, cost] of spend) {
+  for (const [kind, cost] of [['trap',2],['esprit',3],['demon',6]]) {
     while (house.souls >= cost) {
-      const cands = house.rooms.filter(r => r.hauntings.length < 3 &&
-        !r.hauntings.some(h => h.kind === kind && h.charged));
-      if (!cands.length) break;
-      const r = cands[Math.floor(Math.random() * cands.length)];
-      r.hauntings.push({ kind, charged:true });
+      const free = [];
+      for (const r of house.rooms) {
+        for (const a of r.artifacts) {
+          if (a === house.flameArtifact && house.flameRoom === r) continue;
+          if (!r.hauntings.some(h => h.artifact === a)) free.push([r, a]);
+        }
+      }
+      if (!free.length) break;
+      const [r, a] = free[Math.floor(Math.random() * free.length)];
+      r.hauntings.push({ kind, charged:true, artifact:a });
       house.souls -= cost;
-      log('🤖 ' + HAZARDS[kind].icon + ' ' + HAZARDS[kind].name + ' placé dans ' + r.name + '.', '#b388ff');
+      log('🤖 ' + HAZARDS[kind].icon + ' ' + HAZARDS[kind].name + ' placé dans ' + r.name + ' / ' + a + '.', '#b388ff');
       if (kind !== 'trap') break;
+    }
+  }
+  if (gardenHazards.length < 2 && house.souls >= 2) {
+    const spots = [];
+    for (let gx = 3; gx < GW - 3; gx += 2) {
+      for (let gz = 15; gz <= 25; gz += 2) {
+        if (walkable(gx, gz) && !gardenHazards.some(g => Math.abs(g.gx - gx) + Math.abs(g.gz - gz) < 4)) spots.push([gx, gz]);
+      }
+    }
+    if (spots.length) {
+      const [gx, gz] = spots[Math.floor(Math.random() * spots.length)];
+      addGardenHazard(gx, gz, 'trap');
+      house.souls -= 2;
+      log('🤖 Un piège fleurit dans le jardin… 🪤', '#b388ff');
     }
   }
   for (const r of house.rooms) for (const h of r.hauntings) {
@@ -802,9 +961,9 @@ function aiHouseTurn() {
   refreshUI();
 }
 
-// ---------- Recrutement IA des attaquants ----------
 function aiAttackerRecruit() {
   if (mode !== 'defend' || phase !== 'atk' || gameOver) return;
+  atk.souls += 2;
   const order = ['pretre','militaire','fetard','tourist'];
   for (const t of order) {
     const u = UNITS[t];
@@ -817,61 +976,168 @@ function aiAttackerRecruit() {
   }
 }
 
-// ---------- Fin de partie ----------
 function endGame(winner) {
   gameOver = true;
-  const e = $('end');
-  const card = $('endCard');
+  selectUnit(null); clearPathMarkers();
+  $('modal').classList.add('hidden');
+  const e = $('end'), card = $('endCard');
   if (winner === 'atk') {
     card.innerHTML = '⚔️ <b>LES ATTAQUANTS GAGNENT !</b><br>Ils ont trouvé la Flamme ! 🕯️💥' +
       '<br><button onclick="location.reload()">Rejouer</button>';
   } else {
-    card.innerHTML = '🏠 <b>LA MAISON GAGNE !</b><br>' + (crosses.length + 1) +
+    card.innerHTML = '🏠 <b>LA MAISON GAGNE !</b><br>' + crosses.length +
       ' croix dans le jardin… le cimetière privé est magnifique. ✝😄' +
       '<br><button onclick="location.reload()">Rejouer</button>';
   }
   e.classList.remove('hidden');
 }
 
-// ---------- Caméra drag & zoom ----------
-let dragging = false, lastX = 0, lastY = 0;
-canvas.addEventListener('pointerdown', e => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
-window.addEventListener('pointerup', () => { dragging = false; });
-window.addEventListener('pointermove', e => {
+const ray = new THREE.Raycaster(), pointer = new THREE.Vector2();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+function pickPoint(e) {
+  pointer.x = (e.clientX / innerWidth) * 2 - 1;
+  pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+  ray.setFromCamera(pointer, camera);
+  const p = new THREE.Vector3();
+  return ray.ray.intersectPlane(groundPlane, p) ? p : null;
+}
+const gxFromP = p => p ? Math.round((p.x + GW * T / 2) / T - 0.5) : -99;
+const gzFromP = p => p ? Math.round((p.z + GH * T / 2) / T - 0.5) : -99;
+function pickUnit(e) {
+  pointer.x = (e.clientX / innerWidth) * 2 - 1;
+  pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+  ray.setFromCamera(pointer, camera);
+  const meshes = atk.units.filter(u => u.alive).map(u => u.mesh);
+  const hits = ray.intersectObjects(meshes, true);
+  if (!hits.length) return null;
+  let obj = hits[0].object;
+  while (obj.parent && !atk.units.some(u => u.mesh === obj)) obj = obj.parent;
+  return atk.units.find(u => u.mesh === obj) || null;
+}
+
+let dragging = false, dragMoved = false, lastX = 0, lastY = 0;
+canvas.addEventListener('pointerdown', e => {
+  if (modalState || gameOver || !mode) return;
+  if (phase === 'atk' && (mode === 'attack' || mode === 'duo')) {
+    const u = pickUnit(e);
+    if (u) {
+      if (u.movedThisTurn) { log(u.def.name + ' a déjà bougé ce tour.', '#ffd166'); return; }
+      selectUnit(u);
+      drawing = true; dragMoved = false;
+      pathTiles = [[u.gx, u.gz]];
+      clearPathMarkers();
+      refreshUI();
+      return;
+    }
+  }
+  dragging = true; dragMoved = false; lastX = e.clientX; lastY = e.clientY;
+});
+canvas.addEventListener('pointermove', e => {
+  if (drawing && selectedUnit) {
+    const p = pickPoint(e);
+    if (!p) return;
+    const gx = gxFromP(p), gz = gzFromP(p);
+    const last = pathTiles[pathTiles.length - 1];
+    if (Math.abs(gx - last[0]) + Math.abs(gz - last[1]) === 1 &&
+        pathTiles.length <= selectedUnit.def.speed && walkable(gx, gz) &&
+        !pathTiles.some(t => t[0] === gx && t[1] === gz)) {
+      pathTiles.push([gx, gz]);
+      addPathMarker([gx, gz]);
+      refreshUI();
+    }
+    return;
+  }
   if (!dragging) return;
+  if (Math.abs(e.clientX - lastX) + Math.abs(e.clientY - lastY) > 4) dragMoved = true;
   camTheta -= (e.clientX - lastX) * 0.004;
   camPhi = Math.min(1.35, Math.max(0.45, camPhi - (e.clientY - lastY) * 0.003));
   lastX = e.clientX; lastY = e.clientY;
   updateCam();
 });
-canvas.addEventListener('wheel', e => {
-  camR = Math.min(90, Math.max(24, camR + e.deltaY * 0.03));
-  updateCam();
-}, { passive:true });
-
-window.addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+canvas.addEventListener('pointerup', e => {
+  if (drawing && selectedUnit) {
+    drawing = false;
+    if (pathTiles.length > 1) {
+      selectedUnit.movedThisTurn = true;
+      commitPath(selectedUnit);
+      const r = roomAt(selectedUnit.gx, selectedUnit.gz);
+      if (selectedUnit.alive && r && !isDoor(selectedUnit.gx, selectedUnit.gz) && !gameOver) {
+        openAttackerPlan(r, selectedUnit);
+        refreshUI();
+        return;
+      }
+    } else {
+      clearPathMarkers();
+    }
+    refreshUI();
+    return;
+  }
+  const wasClick = dragging && !dragMoved;
+  dragging = false;
+  if (wasClick) handleClick(e);
 });
 
-// ---------- Boucle d'animation ----------
-let t0 = 0;
-function loop(t) {
-  requestAnimationFrame(loop);
-  const dt = (t - t0) / 1000; t0 = t;
-  for (const u of atk.units) {
-    if (u.alive) u.mesh.position.y = Math.abs(Math.sin(t / 180 + u.gx)) * 0.25;
+function handleClick(e) {
+  if (modalState || gameOver || !mode) return;
+  if (pickMode === 'build') {
+    pointer.x = (e.clientX / innerWidth) * 2 - 1;
+    pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+    ray.setFromCamera(pointer, camera);
+    const hits = ray.intersectObjects(ghostMeshes);
+    if (hits.length) tryBuild(hits[0].object.userData.slot);
+    return;
   }
-  const s = 1 + Math.sin(t / 200) * 0.12;
-  flameCore.scale.setScalar(s);
-  flameCone.scale.setScalar(s);
-  for (const g of ghostMeshes) g.material.opacity = 0.18 + 0.14 * (Math.sin(t / 250) + 1);
-  renderer.render(scene, camera);
+  if (pickMode === 'flame') {
+    const p = pickPoint(e);
+    const room = roomAt(gxFromP(p), gzFromP(p));
+    if (room) { openDefenderPlan(room, 'flame'); pickMode = null; }
+    return;
+  }
+  if (pickMode === 'haunt') {
+    const p = pickPoint(e);
+    if (!p) return;
+    const gx = gxFromP(p), gz = gzFromP(p);
+    const room = roomAt(gx, gz);
+    const kind = window.__hauntKind;
+    if (room) {
+      if (room.hauntings.length >= room.artifacts.length) {
+        log(room.name + ' : tous ses artefacts sont occupés !', '#ff8a80');
+        return;
+      }
+      openDefenderPlan(room, 'haunt', kind);
+      return;
+    }
+    if (gz >= 14 && gz <= 26 && walkable(gx, gz)) {
+      if (gardenHazards.length >= GARDEN_HAZ_MAX) {
+        log('Le jardin est saturé (max ' + GARDEN_HAZ_MAX + ').', '#ff8a80');
+        return;
+      }
+      house.souls -= HAZARD_COST[kind];
+      addGardenHazard(gx, gz, kind);
+      log(HAZARDS[kind].icon + ' ' + HAZARDS[kind].name + ' enfoui dans le jardin (' + gx + ',' + gz + ') — s\u2019active à proximité !', '#b388ff');
+      pickMode = null;
+      refreshUI();
+    }
+    return;
+  }
 }
-requestAnimationFrame(loop);
 
-// Le panneau attaquant recrute : les unités spawn immédiatement (en phase atk)
+function tryBuild(slot) {
+  const need = gaugeNeed();
+  if (house.souls < need) { log('Jauge pas encore pleine !', '#ff8a80'); return; }
+  house.souls -= need;
+  const r = addRoom(buildKind, slot.x, slot.z);
+  for (const other of house.rooms) {
+    if (other === r) continue;
+    carveDoor(r, other);
+  }
+  log('🏗️ ' + r.name + ' construite ! Artefacts : ' + r.artifacts.join(', ') + ' — la jauge se remplit maintenant plus lentement.', '#8be28b');
+  buildKind = null; pickMode = null;
+  document.querySelectorAll('#buildBtns button').forEach(x => x.classList.remove('sel'));
+  clearGhosts();
+  refreshUI();
+}
+
 document.querySelectorAll('.attackBtn').forEach(b => {
   b.addEventListener('click', () => {
     if (phase !== 'atk') return;
@@ -884,12 +1150,34 @@ document.querySelectorAll('.attackBtn').forEach(b => {
   });
 });
 
-// ---------- Duo : phase attaquant automatique aussi ----------
-const _origRun = runAtkPhase;
-runAtkPhase = function() {
-  aiAttackerRecruit();
-  _origRun();
-};
+canvas.addEventListener('wheel', e => {
+  camR = Math.min(90, Math.max(24, camR + e.deltaY * 0.03));
+  updateCam();
+}, { passive:true });
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+let t0 = 0;
+function loop(t) {
+  requestAnimationFrame(loop);
+  for (const u of atk.units) {
+    if (u.alive) {
+      const bob = Math.abs(Math.sin(t / 180 + u.gx)) * 0.25 + (selectedUnit === u ? 0.35 : 0);
+      u.mesh.position.y = bob;
+    }
+  }
+  if (selectedUnit) ring.position.set(wx(selectedUnit.gx), 0.15, wz(selectedUnit.gz));
+  const s = 1 + Math.sin(t / 200) * 0.12;
+  flameCore.scale.setScalar(s);
+  flameCone.scale.setScalar(s);
+  for (const g of ghostMeshes) g.material.opacity = 0.18 + 0.14 * (Math.sin(t / 250) + 1);
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+
 refreshUI();
 })();
 </script>
